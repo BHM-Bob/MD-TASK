@@ -10,8 +10,8 @@
 
 import numpy as np
 
-from lib.cli import CLI
-from lib.utils import Logger
+from lazydock_md_task.cli import CLI
+from lazydock_md_task.utils import Logger
 
 import sys, argparse, matplotlib
 

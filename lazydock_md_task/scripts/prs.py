@@ -16,10 +16,10 @@ import mdtraj as md
 
 from math import log10, floor, sqrt
 
-from lib import sdrms
-from lib.cli import CLI
-from lib.utils import Logger
-from lib.trajectory import load_trajectory
+from lazydock_md_task import sdrms
+from lazydock_md_task.cli import CLI
+from lazydock_md_task.utils import Logger
+from lazydock_md_task.trajectory import load_trajectory
 
 
 def round_sig(x, sig=2):

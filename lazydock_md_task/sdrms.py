@@ -1,3 +1,9 @@
+'''
+Date: 2025-02-01 10:35:36
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2025-02-01 11:01:08
+Description: 
+'''
 #! /usr/bin/env python
 #
 # Calculate SMART RMSD with or without molecular superposition (FIT or NOFIT)
@@ -54,7 +60,7 @@ def superpose3D(ref, target, weights=None,refmask=None,targetmask=None,returnRot
             dotProd = npy.dot( npy.transpose(reftmp), targettmp)
             V, S, Wt = npy.linalg.svd(dotProd )
         except Exception:
-            print >> sys.stderr,"Couldn't perform the Single Value Decomposition, skipping alignment"
+            print("Couldn't perform the Single Value Decomposition, skipping alignment")
         return ref, 0
     # we already have our solution, in the results from SVD.
     # we just need to check for reflections and then produce

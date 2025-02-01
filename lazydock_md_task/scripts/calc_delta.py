@@ -10,9 +10,9 @@
 
 from natsort import natsorted
 
-from lib.cli import CLI
-from lib.utils import Logger
-from lib.strategies import normalization
+from lazydock_md_task.cli import CLI
+from lazydock_md_task.utils import Logger
+from lazydock_md_task.strategies import normalization
 
 import numpy as np
 

@@ -9,9 +9,9 @@
 # Author: David Brown
 # Date: 17-11-2016
 
-from lib.cli import CLI
-from lib.utils import Logger
-from lib.trajectory import load_trajectory, calc_distance
+from lazydock_md_task.cli import CLI
+from lazydock_md_task.utils import Logger
+from lazydock_md_task.trajectory import load_trajectory, calc_distance
 
 import numpy as np
 import networkx as nx

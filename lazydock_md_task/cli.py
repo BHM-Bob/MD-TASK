@@ -1,5 +1,11 @@
+'''
+Date: 2025-02-01 10:35:36
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2025-02-01 10:51:22
+Description: forked from RUBi-ZA/MD-TASK
+'''
 from datetime import datetime
-from lib.utils import format_seconds
+from .utils import format_seconds
 
 def CLI(parser, callback, log):
     #standard arguments for logging

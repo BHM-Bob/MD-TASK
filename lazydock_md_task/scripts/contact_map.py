@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-from lib.utils import format_seconds
+from lazydock_md_task.utils import format_seconds
 
 __author__ = "Olivier Sheik Amamuddy"
 __copyright__ = "Copyright 2019, Research Unit in Bioinformatics"
