@@ -102,3 +102,6 @@ test/data
 
 # shell
 *.sh~
+
+# data_tmp
+data_tmp/
