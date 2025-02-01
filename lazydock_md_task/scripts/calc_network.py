@@ -166,11 +166,16 @@ def main(args):
 
     if args.calc_L:
         calc_shortest_paths(traj, traj_name, total_frames, args)
+    
+# dev code    
+# if __name__ == "__main__":
+#     traj = load_trajectory("data_tmp/gmx/run1/md_center.xtc", "data_tmp/gmx/run1/npt.gro", 1)
+#     construct_graph(traj[0][0], save_graph=False)
+#     exit()
 
 
-log = Logger()
-traj = None
 if __name__ == "__main__":
+    log = Logger()
     parser = argparse.ArgumentParser()
 
     parser.add_argument("trajectory", help="Trajectory file")
