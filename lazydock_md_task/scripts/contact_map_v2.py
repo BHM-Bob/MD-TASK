@@ -1,15 +1,18 @@
 # Optimized from contact_map.py by DeepSeek R1 web-service
 
 import argparse
+import os
 import sys
 from datetime import datetime
-import pandas as pd
-import sys, argparse, matplotlib
 
-matplotlib.use('TkAgg')
+import matplotlib
+import pandas as pd
+
+if 'MBAPY_PLT_AGG' in os.environ:
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import networkx as nx
 import mdtraj as md
+import networkx as nx
 
 
 def plot_network(graph, edges_list, output_path, node_size=2900, node_fontsize=9.5,
