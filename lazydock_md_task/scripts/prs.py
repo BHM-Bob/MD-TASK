@@ -224,9 +224,9 @@ def main(args):
     return maxRHO
 
 
-log = Logger()
 
 if __name__ == "__main__":
+    log = Logger()
     parser = argparse.ArgumentParser()
 
     parser.add_argument("trajectory", help="Trajectory file")
