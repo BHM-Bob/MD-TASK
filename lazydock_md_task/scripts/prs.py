@@ -221,7 +221,7 @@ def main(args):
 
     numpy.savetxt("%s.csv" % args.prefix, maxRHO, delimiter=",", header=args.prefix)
 
-    del maxRHO
+    return maxRHO
 
 
 log = Logger()
