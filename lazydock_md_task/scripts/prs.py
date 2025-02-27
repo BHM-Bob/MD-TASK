@@ -8,18 +8,17 @@
 # Author: David Penkler
 # Date: 17-11-2016
 
-import sys, argparse
-
-import numpy
+import argparse
+import sys
+from math import floor, log10, sqrt
 
 import mdtraj as md
-
-from math import log10, floor, sqrt
-
+import numpy
 from lazydock_md_task import sdrms
 from lazydock_md_task.cli import CLI
-from lazydock_md_task.utils import Logger
 from lazydock_md_task.trajectory import load_trajectory
+from lazydock_md_task.utils import Logger
+from tqdm import tqdm
 
 
 def round_sig(x, sig=2):
@@ -58,16 +57,15 @@ def calc_rmsd(reference_frame, alternative_frame, aln=False):
 
 
 def main(args):
-    if not args.final:
-        log.error("a final co-ordinate file must be supplied via the --final argument\n")
-        sys.exit(1)
+    from MDAnalysis import Universe
+    u = Universe(args.topology, args.trajectory)
+    idx = u.select_atoms('protein and name CA').ids
+    
+    final = md.load_frame(args.trajectory, args.final, top=args.topology, atom_indices=idx)
+    final_pos = final[0].xyz[0]
 
-    initial = md.load_frame(args.trajectory, 0, top=args.topology)
-    if not args.initial:
-        args.initial = "initial.xyz"
-
-        log.info("Generating initial co-ordinate file: %s\n" % args.initial)
-        initial[0].save(args.initial)
+    initial = md.load_frame(args.trajectory, args.initial, top=args.topology, atom_indices=idx)
+    initial_pos = initial[0].xyz[0]
 
 
     log.info("Loading trajectory...\n")
@@ -146,36 +144,9 @@ def main(args):
     log.info('- Calculating corr_mat\n')
 
     corr_mat = (RT_mat * R_mat)/ (totalframes-1)
-    numpy.savetxt("corr_mat.txt", corr_mat)
-
-    del aligned_mat
-    del meanstructure
-    del R_mat
-    del RT_mat
-
 
     log.info('Reading initial and final PDB co-ordinates...\n')
-
-    initial = numpy.zeros((totalres, 3))
-    final = numpy.zeros((totalres, 3))
-
-    with open(args.initial, 'r') as initial_lines:
-        with open(args.final, 'r') as final_lines:
-
-            res_index = 0
-            for line_index, initial_line in enumerate(initial_lines):
-                final_line = final_lines.readline()
-
-                if line_index >= 1 and res_index < totalres:
-                    initial_res = initial_line.strip().split()
-
-                    if(len(initial_res[0]) == 4):
-                        final_res = final_line.strip().split()
-
-                        initial[res_index,] = initial_res[1:]
-                        final[res_index,] = final_res[1:]
-                        res_index += 1
-
+    initial, final = initial_pos, final_pos
 
     log.info('Calculating experimental difference between initial and final co-ordinates...\n')
 
@@ -197,7 +168,7 @@ def main(args):
     diffP = numpy.zeros((totalres, totalres*3, perturbations))
     initial_trans = initial.reshape(1, totalres*3)
 
-    for s in range(0, perturbations):
+    for s in tqdm(range(0, perturbations), total=perturbations, desc='perform perturbations', leave=False):
         for i in range(0, totalres):
             delF = numpy.zeros((totalres*3))
             f = 2 * numpy.random.random((3, 1)) - 1
@@ -230,14 +201,14 @@ def main(args):
     for i in range(0, totalres):
         DTarget[i] = sqrt(diffE[3*(i+1)-3]**2 + diffE[3*(i+1)-2]**2 + diffE[3*(i+1)-1]**2)
 
-    for j in range(0, perturbations):
+    for j in tqdm(range(0, perturbations), total=perturbations, desc='calcu DIFF', leave=False):
         for i in range(0, totalres):
             for k in range(0, totalres):
                 DIFF[k,i,j] = sqrt((diffP[i, 3*(k+1)-3, j]**2) + (diffP[i, 3*(k+1)-2, j]**2) + (diffP[i, 3*(k+1)-1, j]**2))
 
     del diffP
 
-    for i in range(0, perturbations):
+    for i in tqdm(range(0, perturbations), total=perturbations, desc='calcu RHO', leave=False):
         for j in range(0, totalres):
             RHO[j,i] = numpy.corrcoef(numpy.transpose(DIFF[:,j,i]), DTarget)[0,1]
 
@@ -261,8 +232,8 @@ if __name__ == "__main__":
     parser.add_argument("trajectory", help="Trajectory file")
     parser.add_argument("--topology", help="Topology PDB file (required if trajectory does not contain topology information)")
     parser.add_argument("--step", help="Size of step when iterating through trajectory frames", default=1, type=int)
-    parser.add_argument("--initial", help="Initial state co-ordinate file (default: generated from first frame of trajectory)", default=None)
-    parser.add_argument("--final", help="Final state co-ordinate file (must be provided)")
+    parser.add_argument("--initial", type=int, help="Initial state co-ordinate file (default: generated from first frame of trajectory)", default=None)
+    parser.add_argument("--final", type=int, help="Final state co-ordinate file (must be provided)")
     parser.add_argument("--perturbations", help="Number of perturbations (default: 250)", type=int, default=250)
     parser.add_argument("--num-frames", help="The number of frames in the trajectory (provides improved performance for large trajectories that cannot be loaded into memory)", type=int, default=None)
     parser.add_argument("--aln", help="Restrict N-Terminal alignment", action="store_true")
