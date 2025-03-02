@@ -62,10 +62,10 @@ def main(args):
     idx = u.select_atoms('protein and name CA').ids
     
     final = md.load_frame(args.trajectory, args.final, top=args.topology, atom_indices=idx)
-    final_pos = final[0].xyz[0]
+    final_pos = final[0].xyz[0] * 10.
 
     initial = md.load_frame(args.trajectory, args.initial, top=args.topology, atom_indices=idx)
-    initial_pos = initial[0].xyz[0]
+    initial_pos = initial[0].xyz[0] * 10.
 
 
     put_log("Loading trajectory...\n")
