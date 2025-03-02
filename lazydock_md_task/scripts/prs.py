@@ -17,7 +17,7 @@ import numpy
 from lazydock_md_task import sdrms
 from lazydock_md_task.cli import CLI
 from lazydock_md_task.trajectory import load_trajectory
-from lazydock_md_task.utils import Logger
+from mbapy_lite.base import put_log
 from tqdm import tqdm
 
 
@@ -68,7 +68,7 @@ def main(args):
     initial_pos = initial[0].xyz[0]
 
 
-    log.info("Loading trajectory...\n")
+    put_log("Loading trajectory...\n")
 
     if args.num_frames:
         traj, totalframes = load_trajectory(args.trajectory, args.topology, args.step, True)
@@ -78,15 +78,15 @@ def main(args):
 
     totalres = initial.n_residues
 
-    log.info('- Total number of frames = %d\n- Number of residues = %d\n' % (totalframes, totalres))
+    put_log('- Total number of frames = %d\n- Number of residues = %d\n' % (totalframes, totalres))
 
     trajectory = trajectory_to_array(traj, totalframes, totalres)
 
-    log.info('- Final trajectory matrix size: %s\n' % str(trajectory.shape))
+    put_log('- Final trajectory matrix size: %s\n' % str(trajectory.shape))
     del traj
 
 
-    log.info("Aligning trajectory frames...\n")
+    put_log("Aligning trajectory frames...\n")
 
     aligned_mat = numpy.zeros((totalframes,3*totalres))
     frame_0 = trajectory[0].reshape(totalres, 3)
@@ -97,12 +97,12 @@ def main(args):
     del trajectory
 
 
-    log.info("- Calculating average structure...\n")
+    put_log("- Calculating average structure...\n")
 
     average_structure_1 = numpy.mean(aligned_mat, axis=0).reshape(totalres, 3)
 
 
-    log.info("- Aligning to average structure...\n")
+    put_log("- Aligning to average structure...\n")
 
     for i in range(0, 10):
         for frame in range(0, totalframes):
@@ -112,7 +112,7 @@ def main(args):
 
         rmsd = calc_rmsd(average_structure_1, average_structure_2, args.aln)
 
-        log.info('   - %s Angstroms from previous structure\n' % str(rmsd))
+        put_log('   - %s Angstroms from previous structure\n' % str(rmsd))
 
         average_structure_1 = average_structure_2
         del average_structure_2
@@ -123,35 +123,35 @@ def main(args):
             break
 
 
-    log.info("Calculating difference between frame atoms and average atoms...\n")
+    put_log("Calculating difference between frame atoms and average atoms...\n")
 
     meanstructure = average_structure_1.reshape(totalres*3)
 
     del average_structure_1
 
-    log.info('- Calculating R_mat\n')
+    put_log('- Calculating R_mat\n')
     R_mat = numpy.zeros((totalframes, totalres*3))
     for frame in range(0, totalframes):
         R_mat[frame,:] = (aligned_mat[frame,:]) - meanstructure
 
-    log.info('- Transposing\n')
+    put_log('- Transposing\n')
 
     RT_mat = numpy.transpose(R_mat)
 
     RT_mat = numpy.mat(RT_mat)
     R_mat = numpy.mat(R_mat)
 
-    log.info('- Calculating corr_mat\n')
+    put_log('- Calculating corr_mat\n')
 
     corr_mat = (RT_mat * R_mat)/ (totalframes-1)
 
-    log.info('Reading initial and final PDB co-ordinates...\n')
+    put_log('Reading initial and final PDB co-ordinates...\n')
     initial, final = initial_pos, final_pos
 
-    log.info('Calculating experimental difference between initial and final co-ordinates...\n')
+    put_log('Calculating experimental difference between initial and final co-ordinates...\n')
 
     if args.aln:
-        log.info("- Using NTD alignment restrictions\n")
+        put_log("- Using NTD alignment restrictions\n")
         final_alg = sdrms.superpose3D(final, initial, refmask=mask, targetmask=mask)[0]
     else:
         final_alg = sdrms.superpose3D(final, initial)[0]
@@ -162,7 +162,7 @@ def main(args):
     del final_alg
 
 
-    log.info('Implementing perturbations sequentially...\n')
+    put_log('Implementing perturbations sequentially...\n')
 
     perturbations = int(args.perturbations)
     diffP = numpy.zeros((totalres, totalres*3, perturbations))
@@ -192,7 +192,7 @@ def main(args):
     del corr_mat
 
 
-    log.info("Calculating Pearson's correlations coefficient...\n")
+    put_log("Calculating Pearson's correlations coefficient...\n")
 
     DTarget = numpy.zeros(totalres)
     DIFF = numpy.zeros((totalres, totalres, perturbations))
@@ -226,7 +226,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    log = Logger()
     parser = argparse.ArgumentParser()
 
     parser.add_argument("trajectory", help="Trajectory file")
@@ -239,4 +238,5 @@ if __name__ == "__main__":
     parser.add_argument("--aln", help="Restrict N-Terminal alignment", action="store_true")
     parser.add_argument("--prefix", help="Prefix for CSV output file (default: result)", default="result")
 
-    CLI(parser, main, log)
+    args = parser.parse_args()
+    main(args)
