@@ -14,6 +14,7 @@ from typing import List, Union
 import numpy as np
 from lazydock_md_task import sdrms
 from mbapy_lite.base import put_log
+from mbapy_lite.web import TaskPool
 from MDAnalysis import Universe
 from tqdm import tqdm
 
@@ -31,8 +32,28 @@ def calc_rmsd(reference_frame, alternative_frame):
     return sdrms.superpose3D(alternative_frame, reference_frame)[1]
 
 
+def run_single_perturbation(n_residues: int, corr_mat: np.ndarray, initial_pose: np.ndarray):
+    diffP = np.zeros((n_residues, n_residues*3))
+    for i in range(n_residues):
+        delF = np.zeros((n_residues*3))
+        f = 2 * np.random.random((3, 1)) - 1
+        j = (i + 1) * 3
+
+        delF[j-3] = round_sig(abs(f[0,0]), 5)* -1 if f[0,0]< 0 else round_sig(abs(f[0,0]), 5)
+        delF[j-2] = round_sig(abs(f[1,0]), 5)* -1 if f[1,0]< 0 else round_sig(abs(f[1,0]), 5)
+        delF[j-1] = round_sig(abs(f[2,0]), 5)* -1 if f[2,0]< 0 else round_sig(abs(f[2,0]), 5)
+
+        diffP[i, :] = np.dot((delF), (corr_mat))
+        diffP[i, :] = diffP[i, :] + initial_pose.reshape(-1)
+
+        diffP[i, :] = ((sdrms.superpose3D(diffP[i, :].reshape(n_residues, 3), initial_pose)[0].reshape(1, n_residues*3))[0]) - initial_pose.reshape(-1)
+    
+    return diffP
+
+
 def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int, stop: int,
-         perturbations=250, initial: Union[int, np.ndarray] = 0, final: Union[int, np.ndarray] = -1):
+         perturbations=250, initial: Union[int, np.ndarray] = 0, final: Union[int, np.ndarray] = -1,
+         n_worker = 4):
     # select atoms
     u = Universe(top_path, traj_path)
     mask = u.atoms.names == 'CA'
@@ -54,34 +75,23 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
     put_log('- Final trajectory matrix size: %s\n' % str(trajectory.shape))
     
     put_log("Aligning trajectory frames...\n")
-
     aligned_mat = np.zeros((sum_frames,3*ag.n_residues))
     frame_0 = trajectory[0].reshape(ag.n_residues, 3)
-
     for frame in range(0, sum_frames):
         aligned_mat[frame] = align_frame(frame_0, trajectory[frame])
 
-
     put_log("- Calculating average structure...\n")
-
     average_structure_1 = np.mean(aligned_mat, axis=0).reshape(ag.n_residues, 3)
 
-
     put_log("- Aligning to average structure...\n")
-
-    for i in range(0, 10):
+    for _ in range(0, 10):
         for frame in range(0, sum_frames):
             aligned_mat[frame] = align_frame(average_structure_1, aligned_mat[frame])
-
         average_structure_2 = np.average(aligned_mat, axis=0).reshape(ag.n_residues, 3)
-
         rmsd = calc_rmsd(average_structure_1, average_structure_2)
-
         put_log('   - %s Angstroms from previous structure\n' % str(rmsd))
-
         average_structure_1 = average_structure_2
         del average_structure_2
-
         if rmsd <= 0.000001:
             for frame in range(0, sum_frames):
                 aligned_mat[frame] = align_frame(average_structure_1, aligned_mat[frame])
@@ -98,25 +108,15 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
     final_alg = sdrms.superpose3D(final_pose, initial_pose)[0]
     diffE = (final_alg-initial_pose).reshape(ag.n_residues, 3)
 
-    put_log('Implementing perturbations sequentially...\n')
+    put_log(f'Implementing perturbations in parallel with {n_worker} workers...\n')
     diffP = np.zeros((ag.n_residues, ag.n_residues*3, perturbations))
-    initial_trans = initial_pose.reshape(1, ag.n_residues*3)
-
+    pool = TaskPool('process', n_worker=n_worker).start()
     for s in tqdm(range(0, perturbations), total=perturbations, desc='perform perturbations', leave=False):
-        for i in range(0, ag.n_residues):
-            delF = np.zeros((ag.n_residues*3))
-            f = 2 * np.random.random((3, 1)) - 1
-            j = (i + 1) * 3
-
-            delF[j-3] = round_sig(abs(f[0,0]), 5)* -1 if f[0,0]< 0 else round_sig(abs(f[0,0]), 5)
-            delF[j-2] = round_sig(abs(f[1,0]), 5)* -1 if f[1,0]< 0 else round_sig(abs(f[1,0]), 5)
-            delF[j-1] = round_sig(abs(f[2,0]), 5)* -1 if f[2,0]< 0 else round_sig(abs(f[2,0]), 5)
-
-            diffP[i,:,s] = np.dot((delF), (corr_mat))
-            diffP[i,:,s] = diffP[i,:,s] + initial_trans[0]
-
-            diffP[i,:,s] = ((sdrms.superpose3D(diffP[i,:,s].reshape(ag.n_residues, 3), initial_pose)[0].reshape(1, ag.n_residues*3))[0]) - initial_trans[0]
-            del delF
+        pool.add_task(s, run_single_perturbation, ag.n_residues, corr_mat.copy(), initial_pose.copy())
+        pool.wait_till(lambda: pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
+    for s in range(0, perturbations):
+        diffP[:, :, s] = pool.query_task(s, True, 999)
+    pool.close()
 
     # calculate pearson's coefficient
     ## 计算DTarget的向量化版本
@@ -135,5 +135,3 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
     ## 避免除以零（假设数据无零标准差情况）
     max_RHO: np.ndarray = (covariances / std_devs).reshape(ag.n_residues, perturbations).max(axis=-1)
     return max_RHO
-
-
