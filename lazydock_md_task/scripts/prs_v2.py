@@ -58,7 +58,7 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
     u = Universe(top_path, traj_path)
     mask = u.atoms.names == 'CA'
     chain_mask = u.atoms.chainIDs == chains[0]
-    for chain_i in chains:
+    for chain_i in chains[1:]:
         chain_mask = chain_mask | (u.atoms.chainIDs == chain_i)
     ag = u.atoms[mask & chain_mask]
     # load trajectory
