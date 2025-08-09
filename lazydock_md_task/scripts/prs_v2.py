@@ -13,7 +13,7 @@ from typing import List, Union
 
 import numpy as np
 from lazydock_md_task import sdrms
-from mbapy_lite.base import put_log
+from mbapy_lite.base import put_err, put_log
 from mbapy_lite.web import TaskPool
 from MDAnalysis import Universe
 from tqdm import tqdm
@@ -61,6 +61,8 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
     for chain_i in chains[1:]:
         chain_mask = chain_mask | (u.atoms.chainIDs == chain_i)
     ag = u.atoms[mask & chain_mask]
+    if len(ag) == 0:
+        return put_err(f'No CA atoms found in chains {chains}')
     # load trajectory
     stop = stop or len(u.trajectory)
     sum_frames = ceil((stop - start) / step)
