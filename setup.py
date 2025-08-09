@@ -69,4 +69,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/lazydock_md_task-0.2.1.tar.gz
+# twine upload dist/lazydock_md_task-0.2.2.tar.gz
