@@ -118,7 +118,7 @@ def main(top_path: str, traj_path: str, chains: List[str], start: int, step: int
         pool.wait_till(lambda: pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
     for s in range(0, perturbations):
         diffP[:, :, s] = pool.query_task(s, True, 999)
-    pool.close()
+    pool.close(1)
 
     # calculate pearson's coefficient
     ## 计算DTarget的向量化版本
